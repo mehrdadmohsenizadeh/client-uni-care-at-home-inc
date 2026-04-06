@@ -30,7 +30,7 @@ from pathlib import Path
 from PyPDF2 import PdfReader, PdfWriter
 
 from src.compliance.audit import audit_log
-from src.core.client import get_client
+from src.core.client import get_client, get_sdk
 
 MAX_PAGES_PER_FAX = 200
 GOLDEN_NUMBER = os.environ.get("RC_GOLDEN_NUMBER", "+17608888888")
@@ -63,27 +63,25 @@ def send_fax(to: str, pdf_path: str, cover_page_text: str = "") -> dict:
             f"Use send_fax_batch() for large documents."
         )
 
-    # Build the multipart request
+    # Build the multipart request using RingCentral SDK's multipart builder.
+    # The fax API requires multipart/mixed: JSON metadata + file attachment(s).
+    sdk = get_sdk()
+    builder = sdk.create_multipart_builder()
+
     body = {
         "to": [{"phoneNumber": to}],
         "faxResolution": "High",
     }
-
     if cover_page_text:
         body["coverPageText"] = cover_page_text
 
-    # RingCentral fax API uses multipart form: JSON body + file attachment
-    with open(pdf_path, "rb") as pdf_file:
-        attachments = [
-            ("json", ("request.json", __import__("json").dumps(body), "application/json")),
-            ("attachment", (pdf_path.name, pdf_file, "application/pdf")),
-        ]
+    builder.set_body(body)
 
-        response = platform.post(
-            "/restapi/v1.0/account/~/extension/~/fax",
-            body,
-            files=[("attachment", (pdf_path.name, open(pdf_path, "rb"), "application/pdf"))],
-        )
+    with open(pdf_path, "rb") as pdf_file:
+        builder.add(pdf_file.read(), pdf_path.name, "application/pdf")
+
+    request = builder.request("/restapi/v1.0/account/~/extension/~/fax")
+    response = platform.send_request(request)
 
     result = response.json()
     message_id = result.get("id")

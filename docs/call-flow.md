@@ -2,39 +2,45 @@
 
 ## Inbound Call Flow — 760-888-8888
 
+> **Design Note:** Automatic CNG tone detection on a shared Voice+Fax DID is
+> unreliable in RingCentral — IVR greetings interfere with T.30 handshakes.
+> Instead, fax callers use **Press 4** in the IVR to reach a clean, greeting-free
+> Message-Only Extension for fax. This guarantees a proper T.38 negotiation.
+
 ```
 Caller dials (760) 888-8888
         │
         ▼
 ┌───────────────────┐
-│ RingCentral Edge  │
-│ Signal Detection  │
-│ (first 3 seconds) │
-└────┬─────────┬────┘
-     │         │
-  Voice      CNG Tone
-  Detected   Detected (1100 Hz)
-     │         │
-     ▼         ▼
-┌─────────┐  ┌──────────────────┐
-│ Check   │  │ Route to Fax     │
-│ Time of │  │ Extension (500)  │
-│ Day     │  │                  │
-└──┬───┬──┘  │ T.38 Negotiation │
-   │   │     │ Fallback: G.711  │
-   │   │     │ passthrough      │
-   │   │     │                  │
-Bus.  After  │ Store & Forward: │
-Hrs   Hrs    │ ┌──────────────┐ │
-   │   │     │ │Receive pages │ │
-   │   │     │ │Render to PDF │ │
-   │   │     │ │Encrypt (AES) │ │
-   │   │     │ │Store 90 days │ │
-   │   │     │ │Email notify  │ │
-   │   │     │ │Webhook POST  │ │
-   │   │     │ └──────────────┘ │
-   │   │     └──────────────────┘
-   ▼   ▼
+│ RingCentral       │
+│ Auto-Attendant    │
+│ (IVR Greeting)    │
+└────┬──┬──┬──┬─────┘
+     │  │  │  │
+  [1-3,0,9]  [4]
+  Voice      "Send a Fax"
+  Options         │
+     │            ▼
+     │   ┌──────────────────┐
+     │   │ Fax Extension    │
+     ▼   │ (ext 500)        │
+ Check   │ Message-Only     │
+ Time    │ No greeting/VM   │
+ of Day  │                  │
+     │   │ T.38 Negotiation │
+     │   │ Fallback: G.711  │
+     │   │ passthrough      │
+     │   │                  │
+Bus.     │ Store & Forward: │
+Hrs &    │ ┌──────────────┐ │
+After    │ │Receive pages │ │
+Hrs      │ │Render to PDF │ │
+     │   │ │Encrypt (AES) │ │
+     │   │ │Store 90 days │ │
+     │   │ │Email notify  │ │
+     │   │ │Webhook POST  │ │
+     │   │ └──────────────┘ │
+     ▼   └──────────────────┘
 ```
 
 ## Business Hours IVR (Mon-Fri 8:00 AM - 5:00 PM PST)
@@ -49,11 +55,11 @@ Hrs   Hrs    │ ┌──────────────┐ │
 │  Max Retries: 3                  │
 │  On Timeout: Repeat prompt       │
 │  On Max Retry: Route to Operator │
-└──────┬───┬───┬───┬───┬──────────┘
-       │   │   │   │   │
-    [1]│ [2]│ [3]│ [0]│ [9]
-       │   │   │   │   │
-       ▼   ▼   ▼   ▼   ▼
+└──────┬───┬───┬───┬───┬───┬──────┘
+       │   │   │   │   │   │
+    [1]│ [2]│ [3]│ [4]│ [0]│ [9]
+       │   │   │   │   │   │
+       ▼   ▼   ▼   ▼   ▼   ▼
 
 [1] COMPLAINTS & GRIEVANCES
     │
@@ -100,6 +106,17 @@ Hrs   Hrs    │ ┌──────────────┐ │
     └─► TIER 3 FAILOVER
         └── Voicemail Box → hr@unicareathome.com
 
+[4] SEND A FAX
+    │
+    ├─► "Please start your fax transmission now."
+    │
+    └─► Route to Fax Extension (500) — Message-Only
+        ├── No greeting, no voicemail, no call queue
+        ├── Clean T.38 handshake (fallback: G.711 passthrough)
+        ├── Receive all pages → render to PDF → AES-256 encrypt
+        ├── Email notification → fax@unicareathome.com
+        └── Webhook POST → /webhooks/ringcentral (fax.received)
+
 [0] OPERATOR / FRONT DESK
     │
     ├─► Direct ring: Receptionist (Yealink T54W)
@@ -119,15 +136,16 @@ Hrs   Hrs    │ ┌──────────────┐ │
 │ AFTER HOURS GREETING             │
 │ "Our office is currently closed. │
 │  Hours: Mon-Fri 8AM-5PM PST"    │
-└──────┬───┬───┬───┬──────────────┘
-       │   │   │   │
-    [1]│ [2]│ [3]│ [0]
-       │   │   │   │
-       ▼   ▼   ▼   ▼
+└──────┬───┬───┬───┬───┬──────────┘
+       │   │   │   │   │
+    [1]│ [2]│ [3]│ [4]│ [0]
+       │   │   │   │   │
+       ▼   ▼   ▼   ▼   ▼
 
 [1] → Voicemail: complaints@unicareathome.com
 [2] → Voicemail: billing@unicareathome.com
 [3] → Voicemail: hr@unicareathome.com
+[4] → Fax Extension (500) — available 24/7, no greeting
 [0] → EMERGENCY FORWARD
       └── On-Call Admin Cell (Find Me / Follow Me)
           ├── Admin 1: 15 sec

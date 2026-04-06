@@ -6,7 +6,7 @@
 
 | Requirement | RingCentral Ultra | Twilio + Interconnect |
 |---|---|---|
-| **Voice/Fax on Single DID** | Native CNG tone detection — built-in | Must build custom `<Gather>` + tone detection; Twilio **deprecated its Fax API** (Dec 2021) |
+| **Voice/Fax on Single DID** | IVR menu option routes to fax extension cleanly (see "Important" below) | Must build custom `<Gather>` + tone detection; Twilio **deprecated its Fax API** (Dec 2021) |
 | **100+ Page Fax** | Server-side store-and-forward, up to 200 pages via API | No native fax — requires third-party (Phaxio, SRFax) adding a second vendor + BAA |
 | **HIPAA BAA** | Single BAA covers voice, fax, storage, API | Twilio signs BAA (via Shield add-on, ~$100/mo extra) but fax vendor needs a separate BAA |
 | **IVR / Auto-Attendant** | Drag-and-drop multi-level IVR in admin portal | Must code every menu in TwiML/Studio — weeks of development |
@@ -17,6 +17,20 @@
 | **Monthly Cost (est.)** | ~$35/user/mo (Ultra) | ~$50-80/user/mo (Twilio usage + Interconnect + fax vendor + Shield) |
 
 **Verdict:** RingCentral Ultra delivers 80% of the solution out-of-the-box. Twilio is powerful but overkill — you'd be rebuilding what RingCentral already provides, with the critical disadvantage of having no native fax capability.
+
+---
+
+### Important: Voice/Fax on a Single DID — Real-World Behavior
+
+RingCentral supports setting a number to "Voice and Fax" mode, which attempts automatic CNG tone detection. **However, in practice this is unreliable** — IVR greetings, auto-attendant prompts, and voicemail pickup interfere with the T.30 fax handshake timing, causing fax failures and phantom voicemail artifacts.
+
+**Production-grade approach (recommended):** Use the IVR menu on the Golden Number to give fax callers a clean path:
+
+> *"Press 4 to send a fax."*
+
+Pressing 4 routes directly to the **Message-Only Fax Extension (500)**, which has no greeting, no voicemail, and no call queue — just a clean T.30/T.38 handshake. This is the architecture used below.
+
+**Alternative:** Use a second DID dedicated to fax (e.g., 760-888-8889). This is the most reliable option but requires communicating two numbers externally. If budget permits, this is the safest choice.
 
 ---
 
@@ -31,23 +45,28 @@
                     └──────────┬──────────┘
                                │
                     ┌──────────┴──────────┐
-                    │   RingCentral Edge  │
-                    │   Signal Detection  │
-                    │  (CNG Tone = Fax)   │
-                    └───┬────────────┬────┘
-                        │            │
-               Voice Detected   Fax Detected
-                        │            │
-              ┌─────────┴──┐   ┌────┴──────────┐
-              │ Auto-      │   │ RingCentral   │
-              │ Attendant  │   │ Fax Server    │
-              │ (IVR)      │   │ (T.38/G.711)  │
-              └─────┬──────┘   └────┬──────────┘
-                    │               │
-          ┌─────────┼─────────┐    Store & Forward
-          │         │         │     │
-       Press 1   Press 2   Press 3  ├─► PDF → Encrypted
-       Complaints Billing   HR     │    Storage (AES-256)
+                    │   RingCentral       │
+                    │   Auto-Attendant    │
+                    │   (IVR Menu)        │
+                    └───┬───┬───┬───┬─────┘
+                        │   │   │   │
+              Press 1   │ 2 │ 3 │   Press 4
+              Complaints│   │   │   "Send a Fax"
+                        │   │   │        │
+              ┌─────────┘   │   │   ┌────┴──────────┐
+              │    Billing──┘   │   │ Fax Extension │
+              │         HR──────┘   │ (ext 500)     │
+              │                     │ Message-Only  │
+              │                     │ Clean T.38    │
+              │                     │ No greeting   │
+              │                     └────┬──────────┘
+              │                          │
+              │                     Store & Forward
+    ┌─────────┼─────────┐               │
+    │         │         │          ┌────┴────┐
+ Press 1   Press 2   Press 3      │         │
+ Complaints Billing   HR     PDF Rendered  Webhook
+    │         │         │     AES-256       POST
           │         │         │     │
      ┌────┴────┐ ┌──┴──┐ ┌───┴──┐  ├─► Webhook Callback
      │Ring Grp │ │Ring  │ │Ring  │  │    (fax.received)
@@ -202,8 +221,8 @@ Company: Uni Care At Home, Inc.
 │   │       ├── Tier 2: Director cell (15s timeout)
 │   │       └── Tier 3: Voicemail → hr@unicareathome.com
 │   │
-│   ├── Fax Extension (ext 500)
-│   │   └── Auto-detected from CNG tone on 760-888-8888
+│   ├── Fax Extension (ext 500) — Message-Only
+│   │   └── Reached via IVR "Press 4" (clean T.38 path, no greeting)
 │   │       └── Store-and-forward → fax@unicareathome.com
 │   │
 │   └── Operator / Front Desk (ext 0)
@@ -219,6 +238,7 @@ Company: Uni Care At Home, Inc.
  Press 1 for Complaints and Grievances.
  Press 2 for Billing and Accounts.
  Press 3 for Human Resources.
+ Press 4 to send a fax.
  Press 0 to speak with the Front Desk.
 
  If you know your party's extension, you may dial it at any time.
@@ -234,11 +254,10 @@ Company: Uni Care At Home, Inc.
  Press 1 to leave a message for Complaints and Grievances.
  Press 2 to leave a message for Billing.
  Press 3 to leave a message for Human Resources.
+ Press 4 to send a fax.
 
  For after-hours emergencies, press 0 and your call will be forwarded
- to our on-call administrator.
-
- To send a fax, please hang up and send your fax to this same number."
+ to our on-call administrator."
 ```
 
 ---

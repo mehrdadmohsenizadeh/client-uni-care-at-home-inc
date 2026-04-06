@@ -10,24 +10,56 @@ RingCentral's fax system uses a **store-and-forward** model. Unlike real-time fa
 
 ## Signal Detection (How One Number Handles Both Voice and Fax)
 
+> **Important Real-World Limitation:** RingCentral supports a "Voice and Fax"
+> mode that attempts automatic CNG tone detection. However, **this is unreliable
+> in production** — IVR greetings, auto-attendant prompts, and voicemail pickup
+> interfere with the T.30 fax handshake, causing frequent failures and phantom
+> voicemail artifacts. This is a well-documented issue in the RingCentral
+> community.
+
+### Recommended Approach: IVR Menu Routing
+
+Instead of relying on automatic tone detection, we use the IVR to give fax
+callers a clean path:
+
 ```
 Incoming Call to 760-888-8888
          │
          ▼
 ┌─────────────────────────┐
-│ RingCentral Edge SBC    │
+│ Auto-Attendant (IVR)    │
 │                         │
-│ Listen for CNG tone     │
-│ (1100 Hz, 0.5s bursts)  │
-│ during first 2-4 sec    │
+│ "Press 1 for Complaints │
+│  Press 2 for Billing    │
+│  Press 3 for HR         │
+│  Press 4 to send a fax" │
 │                         │
-│ CNG detected?           │
-│   YES → Route to Fax   │
-│   NO  → Route to IVR   │
+│ Caller presses [4]      │
+└────────────┬────────────┘
+             │
+             ▼
+┌─────────────────────────┐
+│ Fax Extension (500)     │
+│ Type: Message-Only      │
+│                         │
+│ - No greeting audio     │
+│ - No voicemail pickup   │
+│ - No call queue         │
+│ - Clean T.38 handshake  │
+│   (fallback: G.711)     │
 └─────────────────────────┘
 ```
 
-**CNG (Calling Tone):** Every fax machine sends a 1100 Hz tone when initiating. RingCentral's Session Border Controller (SBC) listens for this during the initial seconds of a call. This is industry-standard and requires no configuration — it is automatic when fax is enabled on the company number.
+This ensures the fax machine gets a clean T.30/T.38 negotiation path with no
+audio interference. The IVR's DTMF detection responds to the fax machine's
+button press (sent by the human operator), then silence, then the fax handshake
+proceeds cleanly.
+
+### Alternative: Dedicated Fax DID
+
+If fax volume is very high or callers are automated systems that cannot navigate
+an IVR, add a second DID (e.g., 760-888-8889) set to "Fax Only" mode. This is
+the most reliable option but requires communicating two numbers externally.
 
 ## Outbound Fax Flow (API-Driven)
 
@@ -61,7 +93,7 @@ Incoming Call to 760-888-8888
 
 - **Retries:** RingCentral automatically retries failed transmissions (busy signal, no answer) up to 3 times with exponential backoff.
 - **ECM (Error Correction Mode):** Enabled by default — detects corrupted pages and retransmits them.
-- **Large Documents:** The API accepts PDFs up to 200 pages or 20 MB per request. For documents exceeding this, batch into multiple fax messages.
+- **Large Documents:** The API accepts PDFs up to 200 pages or 50 MB per request. For documents exceeding this, batch into multiple fax messages.
 - **Supported Formats:** PDF, TIFF, DOC, DOCX, TXT, JPG, PNG — all server-side converted to TIFF for transmission.
 
 ## Inbound Fax Flow
