@@ -1,0 +1,46 @@
+# Environment and secrets (HIPAA: never commit credentials)
+.env
+*.env
+config/secrets.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs (may contain sensitive metadata)
+*.log
+*.jsonl
+logs/
+
+# Temporary files
+/tmp/
+*.tmp
+
+# SSL certificates (never commit private keys)
+*.pem
+*.key
+*.crt
+*.csr
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/

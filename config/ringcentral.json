@@ -1,0 +1,80 @@
+{
+  "company": {
+    "name": "Uni Care At Home, Inc.",
+    "main_number": "+17608888888",
+    "timezone": "America/Los_Angeles"
+  },
+  "business_hours": {
+    "schedule": {
+      "monday":    {"from": "08:00", "to": "17:00"},
+      "tuesday":   {"from": "08:00", "to": "17:00"},
+      "wednesday": {"from": "08:00", "to": "17:00"},
+      "thursday":  {"from": "08:00", "to": "17:00"},
+      "friday":    {"from": "08:00", "to": "17:00"},
+      "saturday":  null,
+      "sunday":    null
+    },
+    "timezone": "America/Los_Angeles"
+  },
+  "extensions": {
+    "auto_attendant": 100,
+    "complaints": 200,
+    "billing": 300,
+    "hr": 400,
+    "fax": 500,
+    "operator": 0
+  },
+  "ring_groups": {
+    "complaints": {
+      "extension": 200,
+      "strategy": "simultaneous",
+      "members": ["ext201", "ext202", "ext203"],
+      "timeout_seconds": 15,
+      "failover": {
+        "tier2": {"type": "external", "number": "+1760XXXXXXX", "timeout_seconds": 15},
+        "tier3": {"type": "voicemail", "email": "complaints@unicareathome.com"}
+      }
+    },
+    "billing": {
+      "extension": 300,
+      "strategy": "sequential",
+      "members": ["ext301", "ext302"],
+      "timeout_seconds": 20,
+      "failover": {
+        "tier2": {"type": "external", "number": "+1760XXXXXXX", "timeout_seconds": 15},
+        "tier3": {"type": "voicemail", "email": "billing@unicareathome.com"}
+      }
+    },
+    "hr": {
+      "extension": 400,
+      "strategy": "sequential",
+      "members": ["ext401"],
+      "timeout_seconds": 20,
+      "failover": {
+        "tier2": {"type": "external", "number": "+1760XXXXXXX", "timeout_seconds": 15},
+        "tier3": {"type": "voicemail", "email": "hr@unicareathome.com"}
+      }
+    }
+  },
+  "fax": {
+    "extension": 500,
+    "email_notification": "fax@unicareathome.com",
+    "max_pages_per_request": 200,
+    "retry_attempts": 3,
+    "supported_formats": ["pdf", "tiff", "doc", "docx", "txt", "jpg", "png"]
+  },
+  "phones": {
+    "receptionist": {
+      "model": "Yealink T54W",
+      "extension": 0,
+      "location": "Front Desk"
+    },
+    "complaints_desk_1": {"model": "Yealink T43U", "extension": 201, "location": "Complaints Dept"},
+    "complaints_desk_2": {"model": "Yealink T43U", "extension": 202, "location": "Complaints Dept"},
+    "billing_desk":      {"model": "Yealink T43U", "extension": 301, "location": "Billing Dept"},
+    "hr_desk":           {"model": "Yealink T43U", "extension": 401, "location": "HR Dept"},
+    "cordless_1":        {"model": "Yealink W76P", "extension": 601, "location": "Warehouse"},
+    "cordless_2":        {"model": "Yealink W76P", "extension": 602, "location": "Field Staff"},
+    "conference":        {"model": "Yealink CP920", "extension": 700, "location": "Conference Room"}
+  }
+}

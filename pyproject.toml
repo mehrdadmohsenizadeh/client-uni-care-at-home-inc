@@ -1,0 +1,25 @@
+[project]
+name = "unicare-ucaas"
+version = "1.0.0"
+description = "UCaaS Golden Number Integration for Uni Care At Home, Inc."
+requires-python = ">=3.11"
+dependencies = [
+    "ringcentral>=0.8.2",
+    "flask>=3.1.0",
+    "gunicorn>=23.0.0",
+    "python-dotenv>=1.1.0",
+    "PyPDF2>=3.0.1",
+    "cryptography>=44.0.0",
+    "requests>=2.32.3",
+    "structlog>=25.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
