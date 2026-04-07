@@ -109,28 +109,42 @@ Pressing 4 routes directly to the **Message-Only Fax Extension (500)**, which ha
 | **Latency** | < 150 ms | < 50 ms |
 | **Connection type** | Business-grade cable | Dedicated fiber (DIA) |
 
-### Network Topology
+### Network Topology (Your Actual Closet)
 
 ```
-Internet (ISP - Dedicated Fiber)
+AT&T Fiber (street)
         │
-  ┌─────┴─────┐
-  │  Firewall  │  ← SonicWall TZ370 or Ubiquiti Dream Machine Pro
-  │  (SIP ALG  │    Ports: UDP 5060-5061 (SIP), UDP 16384-32767 (RTP)
-  │  DISABLED) │    TCP 5090-5091 (SIP/TLS), TCP 443 (HTTPS/WSS)
-  └─────┬─────┘
-        │
-  ┌─────┴─────┐
-  │  Managed   │  ← Ubiquiti USW-24-PoE or Cisco CBS250-24P
-  │  PoE Switch│    802.3af PoE for desk phones
-  │  (VLAN)    │    VLAN 10: Data, VLAN 20: Voice (QoS DSCP 46)
+  ┌─────┴──────┐
+  │ AT&T Demarc │  ← Gray box "1520-1.1" (fiber termination)
+  │ (NID)       │
+  └─────┬──────┘
+        │ Fiber
+  ┌─────┴──────┐
+  │ Ciena ONT  │  ← White AT&T box (fiber → Ethernet conversion)
+  └─────┬──────┘
+        │ Ethernet
+  ┌─────┴──────┐
+  │ AT&T       │  ← White cylindrical gateway (router/firewall/WiFi)
+  │ Gateway    │    *** DISABLE SIP ALG HERE ***
+  │ (Router)   │    Must allow: UDP 5060-5061, UDP 16384-32767,
+  │            │    TCP 443, TCP 8083 outbound
+  └─────┬──────┘
+        │ Ethernet
+  ┌─────┴──────┐
+  │ Netgear    │  ← Existing 24-port switch (rack-mounted)
+  │ Switch     │    Distributes via Cat5e patch panel
   └──┬──┬──┬──┘
      │  │  │
-     │  │  └── AP (Ubiquiti U6 Pro) → Softphones on WiFi
+     │  │  └── Yealink W76P Base Station #1 (Ethernet)
+     │  │       └── DECT wireless → Handsets 201, 202, 203
      │  │
-     │  └───── Desk Phone 1..N (PoE powered, VLAN 20)
+     │  └───── Yealink W76P Base Station #2 (Ethernet)
+     │          └── DECT wireless → Handsets 204, 205, 206
      │
-     └──────── Workstations / Servers (VLAN 10)
+     └──────── Workstations (existing Cat5e runs)
+
+Power: WattBox (surge protection) + APC Back-UPS 600 (battery backup)
+Alarm: Protection One panel (independent — not on data network)
 ```
 
 ### Critical Firewall Rules
@@ -153,41 +167,69 @@ TCP       8083              Outbound   Phone provisioning
 
 ## 2. Hardware Bill of Materials
 
-### Desk Phones
+### Existing Infrastructure (Already In Place)
 
-| Device | Role | Qty | Est. Unit Price | Features |
-|---|---|---|---|---|
-| **Yealink T54W** | Front Desk / Receptionist | 1 | $180 | 4.3" color screen, 16 SIP lines, built-in WiFi+BT, PoE, ZTP |
-| **Yealink T43U** | Department Desks (Billing, HR, Complaints) | 4 | $110 | 3.7" screen, 12 SIP lines, PoE, ZTP |
-| **Yealink W76P** | Warehouse / Mobile Staff | 2 | $130 | DECT cordless, 10 handsets per base, roaming |
-| **Yealink CP920** | Conference Room | 1 | $250 | Conference phone, 6m pickup, Noise Proof |
-
-### Network Equipment
-
-| Device | Role | Qty | Est. Unit Price |
-|---|---|---|---|
-| **Ubiquiti Dream Machine Pro** | Firewall / Router / VPN | 1 | $379 |
-| **Ubiquiti USW-24-PoE** | 24-port PoE managed switch | 1 | $399 |
-| **Ubiquiti U6 Pro** | WiFi 6 AP (for softphones) | 1-2 | $149 |
-
-### Cabling
-
-| Item | Spec | Qty |
+| Device | Role | Status |
 |---|---|---|
-| **Cat6 Ethernet** | Shielded, plenum-rated | 500 ft spool |
-| **Patch cables** | Cat6, 3ft & 7ft | 20 each |
-| **Keystone jacks** | Cat6 RJ45 | 16 |
-| **Wall plates** | Dual-port | 8 |
-| **Patch panel** | 24-port Cat6 | 1 |
+| **AT&T Fiber (Ciena ONT)** | ISP handoff — fiber to Ethernet conversion | Existing |
+| **AT&T Gateway (Router)** | NAT, DHCP, firewall, WiFi | Existing — **must disable SIP ALG** |
+| **Netgear Switch (24-port)** | Distributes Ethernet to office via Cat5e patch panel | Existing — works fine for VoIP |
+| **WattBox Power Conditioner** | Surge protection for rack equipment | Existing |
+| **APC Back-UPS 600** | Battery backup for network gear during outages | Existing |
+| **Cat5e Patch Panel + Cabling** | Wired connections to office wall jacks | Existing — no new cabling needed |
+| **Protection One Alarm Panel** | Building security (independent of data network) | Existing — no changes needed |
+
+### New Equipment to Purchase
+
+| Device | Role | Qty | Est. Unit Price | Total |
+|---|---|---|---|---|
+| **Yealink W76P** | DECT cordless base + 1 handset (8 handsets per base) | 2 | $130 | $260 |
+| **Yealink W56H** | Additional DECT handsets (pair with W76P bases) | 4 | $70 | $280 |
+| **Yealink CP920** | Conference room speakerphone (optional) | 1 | $250 | $250 |
+| | | | **Total** | **~$790** |
+
+> **Why all-cordless?** With only 5-6 users and existing Cat5e cabling to the
+> closet, DECT cordless eliminates desk phone cabling entirely. Each W76P base
+> plugs into one Ethernet port on your existing Netgear switch. Handsets are
+> wireless via DECT (dedicated frequency — does NOT compete with WiFi).
+> Range: ~165 ft indoors / ~980 ft outdoors. Two bases provide full office
+> coverage with handset roaming between them.
+
+### Handset Assignment
+
+| Handset | User / Role | Extension | Base Station |
+|---|---|---|---|
+| W76P #1 (included) | Front Desk / Receptionist | 201 | Base 1 |
+| W56H #1 | Complaints | 202 | Base 1 |
+| W56H #2 | Billing | 203 | Base 1 |
+| W76P #2 (included) | HR | 204 | Base 2 |
+| W56H #3 | Office Manager | 205 | Base 2 |
+| W56H #4 | Admin | 206 | Base 2 |
+
+### Network Equipment — What to Keep vs. Replace
+
+Your existing AT&T Gateway works as-is, but with one critical configuration change:
+
+**You MUST disable SIP ALG** on the AT&T Gateway. SIP ALG (Application Layer
+Gateway) "helps" with VoIP by rewriting SIP packets — but it actually breaks
+RingCentral calls, causing one-way audio, dropped calls, and registration
+failures. It is the #1 cause of VoIP issues.
+
+How to disable it depends on your AT&T Gateway model:
+- **BGW320:** Settings > Firewall > Applications, Pinholes and DMZ > disable SIP ALG
+- **BGW210:** Settings > Firewall > Advanced > disable SIP ALG
+- If the option isn't available, enable **IP Passthrough** mode and add a
+  dedicated router (Ubiquiti Dream Machine, ~$379) where you have full control
 
 ### Software / Licenses
 
-| Item | Notes | Monthly Cost |
+| Item | Qty | Monthly Cost (annual billing) |
 |---|---|---|
-| **RingCentral Ultra** | Per user/extension license | ~$35/user/mo |
-| **RingCentral Additional DID** | 760-888-8888 porting | Included or $4.99/mo |
-| **RingCentral Fax** | Included in Ultra — 10,000 pages/mo | Included |
-| **Python SDK** | `ringcentral` — open source | Free |
+| **RingCentral Ultra** | 6 users | 6 x $35 = **$210/mo** |
+| **Port 760-888-8888** | 1 number | Included |
+| **Fax (10,000 pages/mo)** | Included in Ultra | Included |
+| **Python SDK** | Open source (`ringcentral`) | Free |
+| | **Total** | **$210/mo ($2,520/yr)** |
 
 ---
 
@@ -198,35 +240,45 @@ TCP       8083              Outbound   Phone provisioning
 ```
 Company: Uni Care At Home, Inc.
 ├── Main Number: (760) 888-8888  ← Golden Number (ported DID)
+├── RingCentral Ultra Licenses: 6
+│
 ├── Site: Main Office
-│   ├── Auto-Attendant (ext 100)
+│   ├── Auto-Attendant (ext 100) ← system extension, no license needed
 │   │   ├── Business Hours:  Mon-Fri 8:00 AM - 5:00 PM PST
 │   │   └── After Hours:     All other times
 │   │
-│   ├── Department: Complaints (ext 200)
-│   │   └── Ring Group: Simultaneous → 3 phones
-│   │       ├── Tier 1: Desk phones (15s timeout)
+│   ├── Users (6 licenses):
+│   │   ├── ext 201: Front Desk / Receptionist  (W76P handset, Base 1)
+│   │   ├── ext 202: Complaints                 (W56H handset, Base 1)
+│   │   ├── ext 203: Billing                    (W56H handset, Base 1)
+│   │   ├── ext 204: HR                         (W56H handset, Base 2)
+│   │   ├── ext 205: Office Manager             (W76P handset, Base 2)
+│   │   └── ext 206: Admin                      (W56H handset, Base 2)
+│   │
+│   ├── Ring Group: Complaints (ext 200)
+│   │   └── Simultaneous ring → ext 202 + ext 205
+│   │       ├── Tier 1: DECT handsets (15s timeout)
 │   │       ├── Tier 2: Office Manager cell (15s timeout)
 │   │       └── Tier 3: Voicemail → complaints@unicareathome.com
 │   │
-│   ├── Department: Billing (ext 300)
-│   │   └── Ring Group: Sequential → 2 phones
-│   │       ├── Tier 1: Billing desk (20s timeout)
+│   ├── Ring Group: Billing (ext 300)
+│   │   └── Sequential ring → ext 203
+│   │       ├── Tier 1: Billing handset (20s timeout)
 │   │       ├── Tier 2: Admin cell (15s timeout)
 │   │       └── Tier 3: Voicemail → billing@unicareathome.com
 │   │
-│   ├── Department: HR (ext 400)
-│   │   └── Ring Group: Sequential → 1 phone
-│   │       ├── Tier 1: HR desk (20s timeout)
-│   │       ├── Tier 2: Director cell (15s timeout)
+│   ├── Ring Group: HR (ext 400)
+│   │   └── Sequential ring → ext 204
+│   │       ├── Tier 1: HR handset (20s timeout)
+│   │       ├── Tier 2: Office Manager cell (15s timeout)
 │   │       └── Tier 3: Voicemail → hr@unicareathome.com
 │   │
-│   ├── Fax Extension (ext 500) — Message-Only
+│   ├── Fax Extension (ext 500) — Message-Only, no license needed
 │   │   └── Reached via IVR "Press 4" (clean T.38 path, no greeting)
 │   │       └── Store-and-forward → fax@unicareathome.com
 │   │
-│   └── Operator / Front Desk (ext 0)
-│       └── Yealink T54W (receptionist phone)
+│   └── Operator / Front Desk (ext 0 → routes to ext 201)
+│       └── Yealink W76P cordless handset (receptionist)
 ```
 
 ### IVR Script (Business Hours)

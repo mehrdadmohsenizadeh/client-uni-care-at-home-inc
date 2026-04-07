@@ -2,7 +2,10 @@
   "company": {
     "name": "Uni Care At Home, Inc.",
     "main_number": "+17608888888",
-    "timezone": "America/Los_Angeles"
+    "timezone": "America/Los_Angeles",
+    "total_users": 6,
+    "plan": "RingCentral Ultra",
+    "monthly_cost": "$210/mo (6 x $35, annual billing)"
   },
   "business_hours": {
     "schedule": {
@@ -18,17 +21,25 @@
   },
   "extensions": {
     "auto_attendant": 100,
-    "complaints": 200,
-    "billing": 300,
-    "hr": 400,
+    "ring_group_complaints": 200,
+    "ring_group_billing": 300,
+    "ring_group_hr": 400,
     "fax": 500,
     "operator": 0
+  },
+  "users": {
+    "front_desk":      {"extension": 201, "role": "Receptionist",     "handset": "W76P #1 (included)", "base_station": 1},
+    "complaints":      {"extension": 202, "role": "Complaints",       "handset": "W56H #1",            "base_station": 1},
+    "billing":         {"extension": 203, "role": "Billing",          "handset": "W56H #2",            "base_station": 1},
+    "hr":              {"extension": 204, "role": "HR",               "handset": "W56H #3",            "base_station": 2},
+    "office_manager":  {"extension": 205, "role": "Office Manager",   "handset": "W76P #2 (included)", "base_station": 2},
+    "admin":           {"extension": 206, "role": "Admin",            "handset": "W56H #4",            "base_station": 2}
   },
   "ring_groups": {
     "complaints": {
       "extension": 200,
       "strategy": "simultaneous",
-      "members": ["ext201", "ext202", "ext203"],
+      "members": ["ext202", "ext205"],
       "timeout_seconds": 15,
       "failover": {
         "tier2": {"type": "external", "number": "+1760XXXXXXX", "timeout_seconds": 15},
@@ -38,7 +49,7 @@
     "billing": {
       "extension": 300,
       "strategy": "sequential",
-      "members": ["ext301", "ext302"],
+      "members": ["ext203"],
       "timeout_seconds": 20,
       "failover": {
         "tier2": {"type": "external", "number": "+1760XXXXXXX", "timeout_seconds": 15},
@@ -48,7 +59,7 @@
     "hr": {
       "extension": 400,
       "strategy": "sequential",
-      "members": ["ext401"],
+      "members": ["ext204"],
       "timeout_seconds": 20,
       "failover": {
         "tier2": {"type": "external", "number": "+1760XXXXXXX", "timeout_seconds": 15},
@@ -58,23 +69,27 @@
   },
   "fax": {
     "extension": 500,
+    "type": "Message-Only",
+    "ivr_key": 4,
     "email_notification": "fax@unicareathome.com",
     "max_pages_per_request": 200,
+    "max_attachment_size_mb": 50,
     "retry_attempts": 3,
     "supported_formats": ["pdf", "tiff", "doc", "docx", "txt", "jpg", "png"]
   },
   "phones": {
-    "receptionist": {
-      "model": "Yealink T54W",
-      "extension": 0,
-      "location": "Front Desk"
+    "base_stations": {
+      "base_1": {"model": "Yealink W76P", "location": "Server closet, Netgear switch port", "handsets": ["ext201", "ext202", "ext203"]},
+      "base_2": {"model": "Yealink W76P", "location": "Server closet, Netgear switch port", "handsets": ["ext204", "ext205", "ext206"]}
     },
-    "complaints_desk_1": {"model": "Yealink T43U", "extension": 201, "location": "Complaints Dept"},
-    "complaints_desk_2": {"model": "Yealink T43U", "extension": 202, "location": "Complaints Dept"},
-    "billing_desk":      {"model": "Yealink T43U", "extension": 301, "location": "Billing Dept"},
-    "hr_desk":           {"model": "Yealink T43U", "extension": 401, "location": "HR Dept"},
-    "cordless_1":        {"model": "Yealink W76P", "extension": 601, "location": "Warehouse"},
-    "cordless_2":        {"model": "Yealink W76P", "extension": 602, "location": "Field Staff"},
-    "conference":        {"model": "Yealink CP920", "extension": 700, "location": "Conference Room"}
+    "conference": {"model": "Yealink CP920", "extension": 700, "location": "Conference Room", "optional": true}
+  },
+  "existing_infrastructure": {
+    "isp": "AT&T Fiber",
+    "ont": "Ciena ONT (AT&T)",
+    "router": "AT&T Gateway (SIP ALG must be DISABLED)",
+    "switch": "Netgear 24-port (existing, Cat5e patch panel)",
+    "power": "WattBox surge protector + APC Back-UPS 600",
+    "alarm": "Protection One (independent of data network)"
   }
 }
